@@ -5,6 +5,10 @@ using UnityEngine;
 public class FollowerController : MonoBehaviour
 {
     [SerializeField] private Transform m_target;
+    [SerializeField] private bool m_usePhysics = false;
+    [SerializeField] private Rigidbody m_rb;
+
+    [Header("Mouvement")]
     [SerializeField] private float m_minSpeed = 1f;
     [SerializeField] private float m_maxSpeed = 10f;
     [SerializeField] private float m_minDistance = 2.5f;
@@ -19,22 +23,48 @@ public class FollowerController : MonoBehaviour
     }
     void Update()
     {
+        if (!m_usePhysics)
+        {
+            float distance = Vector3.Distance(transform.position, m_target.position);
+            if (distance > m_minDistance)
+            {
+                float distanceRatio = Remap(distance, m_minDistance, m_maxDistance, 0, 1);
+                Debug.Log("test" + distanceRatio);
+                distanceRatio = Mathf.Clamp(distanceRatio, 0, 1);
+
+                float speedRatio = m_speedCurve.Evaluate(distanceRatio);
+                float wantedSpeed = Remap(speedRatio, 0, 1, m_minSpeed, m_maxSpeed);
+
+                transform.position = Vector3.MoveTowards(transform.position, m_target.position, wantedSpeed * Time.deltaTime);
+            }
+
+            // rotation
+
+
+            Vector3 direction = (m_target.position - transform.position).normalized;
+            transform.forward = Vector3.MoveTowards(transform.forward, direction, m_rotationSpeed * Time.deltaTime);
+            transform.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (!m_usePhysics) return;
+
+        Vector3 direction = (m_target.position - transform.position).normalized;
+
         float distance = Vector3.Distance(transform.position, m_target.position);
         if (distance > m_minDistance)
         {
             float distanceRatio = Remap(distance, m_minDistance, m_maxDistance, 0, 1);
-            Debug.Log("test" + distanceRatio);
             distanceRatio = Mathf.Clamp(distanceRatio, 0, 1);
 
             float speedRatio = m_speedCurve.Evaluate(distanceRatio);
             float wantedSpeed = Remap(speedRatio, 0, 1, m_minSpeed, m_maxSpeed);
 
-            transform.position = Vector3.MoveTowards(transform.position, m_target.position, wantedSpeed * Time.deltaTime);
+            direction = new Vector3(direction.x, 0, direction.z, 0);
 
-            // Rotation
-
-            Vector3 direction = (m_target.position - transform.position).normalized;
-            transform.forward = Vector3.MoveTowards(transform.forward, direction, m_rotationSpeed * Time.deltaTime);
+            m_rb.AddForce(direction * wantedSpeed, ForceMode.Acceleration);
         }
     }
 
